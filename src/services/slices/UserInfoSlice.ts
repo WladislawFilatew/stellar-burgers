@@ -11,11 +11,11 @@ import {
   logoutApi,
   forgotPasswordApi,
   resetPasswordApi
-} from '@api';
+} from '../../utils/burger-api';
 
 import { TRegisterData } from '../../utils/burger-api';
 
-type TStateUser = {
+export type TStateUser = {
   isAuthChecked: boolean; //флаг для статуса проверки токена пользователя
   isAuthenticated: boolean;
   user: TUser | null; //null, если пользователь не авторизован
@@ -162,7 +162,7 @@ export const userStateSlice = createSlice({
       })
       .addCase(updateUser.rejected, (state, action) => {
         state.loginUserError =
-          action.error.message || 'Failed to fetch update user ';
+          action.error.message || 'Failed to fetch update user';
         state.loginUserRequest = false;
       });
   },

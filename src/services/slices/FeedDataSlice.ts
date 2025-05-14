@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getFeedsApi } from '@api';
+import { getFeedsApi } from '../../utils/burger-api';
 import { TOrder } from '@utils-types';
 import { getOrderByNumberApi } from '../../utils/burger-api';
 import { act } from 'react-dom/test-utils';
 
-type TStateFeed = {
+export type TStateFeed = {
   orders: TOrder[];
   total: number;
   totalToday: number;
@@ -44,6 +44,7 @@ export const feedDataSlice = createSlice({
     builder
       .addCase(getFeedData.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(getFeedData.fulfilled, (state, action) => {
         state.orders = action.payload.orders;
@@ -57,6 +58,7 @@ export const feedDataSlice = createSlice({
       })
       .addCase(getOrderByNum.pending, (state) => {
         state.loading = true;
+        state.error = null;
       })
       .addCase(getOrderByNum.fulfilled, (state, action) => {
         state.loading = false;

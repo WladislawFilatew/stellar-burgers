@@ -8,7 +8,7 @@ export const AppHeader: FC = () => {
 
   return (
     <>
-      <AppHeaderUI userName={userName?.name} />;
+      <AppHeaderUI userName={userName?.name} />
     </>
   );
 };

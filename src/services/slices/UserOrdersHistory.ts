@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { getOrdersApi, getOrderByNumberApi } from '../../utils/burger-api';
 import { TOrder } from '../../utils/types';
 
-type TStateOrdersHistory = {
+export type TStateOrdersHistory = {
   orders: TOrder[];
   loading: boolean;
   error: null | string | undefined;
