@@ -5,11 +5,13 @@ import { ProfileMenuUIProps } from './type';
 
 export const ProfileMenuUI: FC<ProfileMenuUIProps> = ({
   pathname,
-  handleLogout
+  handleLogout,
+  isLoggingOut,
+  logoutError
 }) => (
   <>
     <NavLink
-      to={'/profile'}
+      to='/profile'
       className={({ isActive }) =>
         `text text_type_main-medium text_color_inactive pt-4 pb-4 ${
           styles.link
@@ -20,7 +22,7 @@ export const ProfileMenuUI: FC<ProfileMenuUIProps> = ({
       Профиль
     </NavLink>
     <NavLink
-      to={'/profile/orders'}
+      to='/profile/orders'
       className={({ isActive }) =>
         `text text_type_main-medium text_color_inactive pt-4 pb-4 ${
           styles.link
@@ -32,9 +34,15 @@ export const ProfileMenuUI: FC<ProfileMenuUIProps> = ({
     <button
       className={`text text_type_main-medium text_color_inactive pt-4 pb-4 ${styles.button}`}
       onClick={handleLogout}
+      disabled={isLoggingOut}
     >
-      Выход
+      {isLoggingOut ? 'Выполняется выход...' : 'Выход'}
     </button>
+    {logoutError && (
+      <p className='text text_type_main-default text_color_error pt-4'>
+        {logoutError}
+      </p>
+    )}
     <p className='pt-20 text text_type_main-default text_color_inactive'>
       {pathname === '/profile'
         ? 'В этом разделе вы можете изменить свои персональные данные'
