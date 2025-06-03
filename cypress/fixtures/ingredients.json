@@ -2,8 +2,8 @@
     "success": true,
     "data": [
         {
-            "_id": "1",
-            "name": "Ингредиент_1",
+            "_id": "60d3b41abdacab0026a733c6",
+            "name": "Краторная булка N-200i",
             "type": "bun",
             "proteins": 80,
             "fat": 24,
@@ -16,22 +16,8 @@
             "__v": 0
         },
         {
-            "_id": "2",
-            "name": "Ингредиент_2",
-            "type": "main",
-            "proteins": 420,
-            "fat": 142,
-            "carbohydrates": 242,
-            "calories": 4242,
-            "price": 424,
-            "image": "https://code.s3.yandex.net/react/code/meat-01.png",
-            "image_mobile": "https://code.s3.yandex.net/react/code/meat-01-mobile.png",
-            "image_large": "https://code.s3.yandex.net/react/code/meat-01-large.png",
-            "__v": 0
-        },
-        {
-            "_id": "3",
-            "name": "Ингредиент_3",
+            "_id": "60d3b41abdacab0026a733c8",
+            "name": "Филе Люминесцентного тетраодонтимформа",
             "type": "main",
             "proteins": 44,
             "fat": 26,
@@ -44,8 +30,8 @@
             "__v": 0
         },
         {
-            "_id": "4",
-            "name": "Ингридиент_4",
+            "_id": "60d3b41abdacab0026a733cc",
+            "name": "Соус Spicy-X",
             "type": "sauce",
             "proteins": 30,
             "fat": 20,
@@ -58,8 +44,8 @@
             "__v": 0
         },
         {
-            "_id": "5",
-            "name": "Ингредиент_5",
+            "_id": "60d3b41abdacab0026a733c7",
+            "name": "Флюоресцентная булка R2-D3",
             "type": "bun",
             "proteins": 44,
             "fat": 26,

@@ -1,66 +1,72 @@
 import { FC, memo, useMemo } from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { OrderCardProps } from './type';
-import { TIngredient } from '@utils-types';
+import { TIngredient, TOrder } from '@utils-types';
 import { OrderCardUI } from '../ui/order-card';
 import { useSelector } from '../../services/store';
 import { getIngredientsWithSelector } from '../../services/slices/IngredientsSlice';
-import { getUserOrdersHistory } from '../../services/slices/UserOrdersHistory'; //
-import { TOrder } from '@utils-types'; //
 
-const maxIngredients = 6;
+const MAX_VISIBLE_INGREDIENTS = 6;
 
-// Компонент отображает информацию о заказе в виде карточки
+interface ExtendedOrderInfo {
+  ingredientsInfo: TIngredient[];
+  ingredientsToShow: TIngredient[];
+  remains: number;
+  total: number;
+  date: Date;
+}
+
+type OrderInfo = TOrder & ExtendedOrderInfo;
+
 export const OrderCard: FC<OrderCardProps> = memo(({ order }) => {
   const location = useLocation();
+  const ingredients = useSelector(getIngredientsWithSelector);
 
-  const orders = useSelector(getUserOrdersHistory); // Получаем список заказов из состояния Redux
+  const orderInfo = useMemo<OrderInfo | null>(() => {
+    if (!ingredients.length || !order.ingredients.length) {
+      return null;
+    }
 
-  //подключаем из стора еще и ингридиенты, так как с сервера получаем только id ингридиентов
-  const ingredients: TIngredient[] = useSelector(getIngredientsWithSelector);
+    const ingredientsInfo = order.ingredients
+      .map((id) => ingredients.find((ing) => ing._id === id))
+      .filter(
+        (ingredient): ingredient is TIngredient => ingredient !== undefined
+      );
 
-  const orderInfo = useMemo(() => {
-    if (!ingredients.length) return;
+    if (!ingredientsInfo.length) {
+      return null;
+    }
 
-    // Собираем информацию о каждом ингредиенте заказа на основе ID, полученных с сервера
-    const ingredientsInfo = order.ingredients.reduce(
-      (acc: TIngredient[], item: string) => {
-        const ingredient = ingredients.find((ing) => ing._id === item);
-        if (ingredient) return [...acc, ingredient];
-        return acc;
-      },
-      []
+    const total = ingredientsInfo.reduce((sum, item) => sum + item.price, 0);
+
+    const ingredientsToShow = ingredientsInfo.slice(0, MAX_VISIBLE_INGREDIENTS);
+    const remains = Math.max(
+      0,
+      ingredientsInfo.length - MAX_VISIBLE_INGREDIENTS
     );
 
-    // Подсчитываем общую стоимость ингредиентов в заказе
-    const total = ingredientsInfo.reduce((acc, item) => acc + item.price, 0);
-
-    // Ограничиваем количество отображаемых ингредиентов до maxIngredients
-    const ingredientsToShow = ingredientsInfo.slice(0, maxIngredients);
-
-    // Вычисляем, сколько ингредиентов не вошло в отображение (если их больше maxIngredients)
-    const remains =
-      ingredientsInfo.length > maxIngredients
-        ? ingredientsInfo.length - maxIngredients
-        : 0;
-
-    const date = new Date(order.createdAt);
     return {
       ...order,
       ingredientsInfo,
       ingredientsToShow,
       remains,
       total,
-      date
+      date: new Date(order.createdAt)
     };
   }, [order, ingredients]);
 
-  if (!orderInfo) return null;
+  if (!orderInfo) {
+    return (
+      <div className='text text_type_main-default text_color_inactive'>
+        Информация о заказе недоступна
+      </div>
+    );
+  }
 
   return (
     <OrderCardUI
       orderInfo={orderInfo}
-      maxIngredients={maxIngredients}
+      maxIngredients={MAX_VISIBLE_INGREDIENTS}
       locationState={{ background: location }}
     />
   );

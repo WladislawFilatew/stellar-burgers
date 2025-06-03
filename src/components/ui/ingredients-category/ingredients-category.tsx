@@ -12,13 +12,21 @@ export const IngredientsCategoryUI = forwardRef<
       {title}
     </h3>
     <ul className={styles.items} ref={ref} {...rest}>
-      {ingredients.map((ingredient) => (
-        <BurgerIngredient
-          ingredient={ingredient}
-          key={ingredient._id}
-          count={ingredientsCounters[ingredient._id]}
-        />
-      ))}
+      {ingredients.length > 0 ? (
+        ingredients.map((ingredient) => (
+          <BurgerIngredient
+            ingredient={ingredient}
+            key={ingredient._id}
+            count={ingredientsCounters[ingredient._id]}
+          />
+        ))
+      ) : (
+        <li
+          className={`${styles.empty_message} text text_type_main-default text_color_inactive`}
+        >
+          Нет доступных ингредиентов
+        </li>
+      )}
     </ul>
   </>
 ));

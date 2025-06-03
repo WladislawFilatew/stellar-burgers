@@ -1,8 +1,10 @@
-import { FC, useMemo } from 'react';
-import { TConstructorIngredient } from '@utils-types';
-import { BurgerConstructorUI, Preloader } from '@ui';
-import { useSelector, useDispatch } from '../../services/store';
+import { FC, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from '../../services/store';
+
+import { TConstructorIngredient, TIngredient, TOrder } from '@utils-types';
+import { BurgerConstructorUI } from '@ui';
+
 import {
   getConstructorItems,
   getOrderRequest,
@@ -10,65 +12,75 @@ import {
   createOrder,
   clearOrder
 } from '../../services/slices/BurgerConstructorSlice';
-import {
-  selectUser,
-  selectIsAuthChecked,
-  selectIsAuthenticated,
-  checkUserAuth
-} from '../../services/slices/UserInfoSlice';
+import { selectIsAuthenticated } from '../../services/slices/UserInfoSlice';
 
-// Компонент, отвечающий за работу конструктора бургера
+interface ConstructorItems {
+  bun: TIngredient | null;
+  ingredients: TConstructorIngredient[];
+}
+
+const calculateTotalPrice = (items: ConstructorItems): number => {
+  const bunPrice = items.bun ? items.bun.price * 2 : 0;
+  const ingredientsPrice = items.ingredients.reduce(
+    (sum, ingredient) => sum + ingredient.price,
+    0
+  );
+  return bunPrice + ingredientsPrice;
+};
+
+const prepareOrderIngredients = (items: ConstructorItems): string[] => {
+  if (!items.bun) return [];
+
+  return [
+    items.bun._id,
+    ...items.ingredients.map((ingredient) => ingredient._id),
+    items.bun._id
+  ];
+};
+
 export const BurgerConstructor: FC = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const constructorItems = useSelector(getConstructorItems); // Получаем ингредиенты конструктора из Redux
-  const orderRequest = useSelector(getOrderRequest); // Получаем статус запроса создания заказа из Redux
-  const orderModalData = useSelector(getOrderModalData); // Получаем данные для модального окна заказа из Redux
-  const authorized = useSelector(selectIsAuthenticated); // Проверяем, авторизован ли пользователь
+  const constructorItems = useSelector(getConstructorItems);
+  const orderRequest = useSelector(getOrderRequest);
+  const orderModalData = useSelector(getOrderModalData);
+  const isAuthenticated = useSelector(selectIsAuthenticated);
 
-  // Обработчик нажатия на кнопку "Оформить заказ"
-  const onOrderClick = () => {
-    if (!authorized) {
-      return navigate('/login');
+  const totalPrice = useMemo(
+    () => calculateTotalPrice(constructorItems),
+    [constructorItems]
+  );
+
+  const handleOrderClick = useCallback(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
     }
-    if (!constructorItems.bun || orderRequest) return;
 
-    // Формируем массив ингредиентов для заказа
-    const order = [
-      constructorItems.bun?._id,
-      ...constructorItems.ingredients.map((ingredient) => ingredient._id),
-      constructorItems.bun?._id
-    ].filter(Boolean); // Фильтруем, чтобы убрать потенциальные undefined значения
+    if (!constructorItems.bun || orderRequest) {
+      return;
+    }
 
-    dispatch(createOrder(order));
-  };
+    const orderIngredients = prepareOrderIngredients(constructorItems);
+    if (orderIngredients.length > 0) {
+      dispatch(createOrder(orderIngredients));
+    }
+  }, [isAuthenticated, constructorItems, orderRequest, dispatch, navigate]);
 
-  // Обработчик закрытия модального окна заказа
-  const closeOrderModal = () => {
+  const handleOrderModalClose = useCallback(() => {
     dispatch(clearOrder());
     navigate('/');
-  };
-
-  // Подсчитываем общую стоимость заказа с использованием useMemo для оптимизации
-  const price = useMemo(
-    () =>
-      (constructorItems.bun ? constructorItems.bun.price * 2 : 0) +
-      constructorItems.ingredients.reduce(
-        (s: number, v: TConstructorIngredient) => s + v.price,
-        0
-      ),
-    [constructorItems] //Вычисление перезапускается только при изменении состава конструктора
-  );
+  }, [dispatch, navigate]);
 
   return (
     <BurgerConstructorUI
-      price={price}
+      price={totalPrice}
       orderRequest={orderRequest}
       constructorItems={constructorItems}
       orderModalData={orderModalData}
-      onOrderClick={onOrderClick}
-      closeOrderModal={closeOrderModal}
+      onOrderClick={handleOrderClick}
+      closeOrderModal={handleOrderModalClose}
     />
   );
 };

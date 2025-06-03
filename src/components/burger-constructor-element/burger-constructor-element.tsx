@@ -1,4 +1,4 @@
-import { FC, memo } from 'react';
+import { FC, memo, useCallback, useMemo } from 'react';
 import { BurgerConstructorElementUI } from '@ui';
 import { BurgerConstructorElementProps } from './type';
 import { useDispatch } from '../../services/store';
@@ -8,23 +8,39 @@ import {
   moveDownIngredient
 } from '../../services/slices/BurgerConstructorSlice';
 
-//компонент-обертка для элемента конструктора бургера с логикой, которая передается в компонент UI для рендера
 export const BurgerConstructorElement: FC<BurgerConstructorElementProps> = memo(
   ({ ingredient, index, totalItems }) => {
     const dispatch = useDispatch();
 
-    //переменные содержат функции слайса конструктора бургера для перемещения в списке ингридиента и его удаления
-    const handleMoveDown = () => {
-      dispatch(moveDownIngredient(index));
-    };
+    const isValidIndex = useMemo(
+      () => index >= 0 && index < totalItems,
+      [index, totalItems]
+    );
 
-    const handleMoveUp = () => {
-      dispatch(moveUpIngredient(index));
-    };
+    if (!isValidIndex) {
+      console.error(
+        'Invalid index or totalItems value in BurgerConstructorElement'
+      );
+      return null;
+    }
 
-    const handleClose = () => {
-      dispatch(removeIngredient(ingredient));
-    };
+    const handleMoveDown = useCallback(() => {
+      if (index < totalItems - 1) {
+        dispatch(moveDownIngredient(index));
+      }
+    }, [dispatch, index, totalItems]);
+
+    const handleMoveUp = useCallback(() => {
+      if (index > 0) {
+        dispatch(moveUpIngredient(index));
+      }
+    }, [dispatch, index]);
+
+    const handleClose = useCallback(() => {
+      if (ingredient) {
+        dispatch(removeIngredient(ingredient));
+      }
+    }, [dispatch, ingredient]);
 
     return (
       <BurgerConstructorElementUI

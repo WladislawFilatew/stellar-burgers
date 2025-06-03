@@ -1,5 +1,9 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { combineReducers } from '@reduxjs/toolkit';
+import {
+  configureStore,
+  combineReducers,
+  Middleware,
+  isRejectedWithValue
+} from '@reduxjs/toolkit';
 import ingredientsSlice from './slices/IngredientsSlice';
 import burgerConstructorSlice from './slices/BurgerConstructorSlice';
 import userStateSlice from './slices/UserInfoSlice';
@@ -12,7 +16,47 @@ import {
   useSelector as selectorHook
 } from 'react-redux';
 
-// Комбинируем все слайсы в один корневой редьюсер
+// Constants
+const CACHE_EXPIRY_TIME = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const APP_STATE_KEY = 'appState';
+
+// Middleware
+const errorMiddleware: Middleware = () => (next) => (action) => {
+  if (isRejectedWithValue(action)) {
+    console.error('Async operation failed:', action.error);
+  }
+  return next(action);
+};
+
+const cacheMiddleware: Middleware = (store) => (next) => (action) => {
+  const result = next(action);
+
+  if (
+    action &&
+    typeof action === 'object' &&
+    'type' in action &&
+    typeof action.type === 'string' &&
+    (action.type.startsWith('ingredients/') || action.type.startsWith('feed/'))
+  ) {
+    const state = store.getState();
+    try {
+      localStorage.setItem(
+        APP_STATE_KEY,
+        JSON.stringify({
+          ingredients: state.ingredients,
+          feeddata: state.feeddata,
+          timestamp: Date.now()
+        })
+      );
+    } catch (e) {
+      console.warn('Failed to save state to localStorage:', e);
+    }
+  }
+
+  return result;
+};
+
+// Root reducer
 const rootReducer = combineReducers({
   [burgerConstructorSlice.name]: burgerConstructorSlice.reducer,
   [feedDataSlice.name]: feedDataSlice.reducer,
@@ -21,20 +65,38 @@ const rootReducer = combineReducers({
   [userOrdersHistorySlice.name]: userOrdersHistorySlice.reducer
 });
 
-export { rootReducer };
+// State loading utility
+const loadPreloadedState = () => {
+  try {
+    const savedState = localStorage.getItem(APP_STATE_KEY);
+    if (savedState) {
+      const { timestamp, ...state } = JSON.parse(savedState);
+      if (Date.now() - timestamp < CACHE_EXPIRY_TIME) {
+        return state;
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load state from localStorage:', e);
+  }
+  return undefined;
+};
 
-// Создаем Redux-хранилище с использованием корневого редьюсера
+// Store configuration
 const store = configureStore({
   reducer: rootReducer,
-  devTools: process.env.NODE_ENV !== 'production'
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().concat(errorMiddleware, cacheMiddleware),
+  devTools: process.env.NODE_ENV !== 'production',
+  preloadedState: loadPreloadedState()
 });
 
+// Types
 export type RootState = ReturnType<typeof store.getState>;
-
 export type AppDispatch = typeof store.dispatch;
 
-// Создаем собственные хуки для использования dispatch и selector с типизацией
-export const useDispatch: () => AppDispatch = () => dispatchHook();
+// Hooks
+export const useDispatch = () => dispatchHook<AppDispatch>();
 export const useSelector: TypedUseSelectorHook<RootState> = selectorHook;
 
+export { rootReducer };
 export default store;

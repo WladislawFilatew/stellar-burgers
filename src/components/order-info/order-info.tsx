@@ -3,77 +3,90 @@ import { Preloader } from '../ui/preloader';
 import { OrderInfoUI } from '../ui/order-info';
 import { TIngredient, TOrder } from '@utils-types';
 import { getIngredientsWithSelector } from '../../services/slices/IngredientsSlice';
-import {
-  getFeedOrders,
-  getOrderByNum
-} from '../../services/slices/FeedDataSlice';
+import { getOrderByNum } from '../../services/slices/FeedDataSlice';
 import { useSelector, useDispatch } from '../../services/store';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { selectOrderById } from '../../services/selector';
 
+interface TIngredientWithCount extends TIngredient {
+  count: number;
+}
+
+interface ExtendedOrderInfo extends TOrder {
+  ingredientsInfo: Record<string, TIngredientWithCount>;
+  date: Date;
+  total: number;
+}
+
 export const OrderInfo: FC = () => {
-  // Используем useParams для получения параметра (номер заказа) из URL
   const { number } = useParams();
-  const orders = useSelector(getFeedOrders); // Получаем список заказов из состояния Redux
+  const orderNumber = Number(number);
   const dispatch = useDispatch();
 
-  const orderData = useSelector(selectOrderById(Number(number)));
-  const ingredients: TIngredient[] = useSelector(getIngredientsWithSelector);
+  const orderData = useSelector(selectOrderById(orderNumber));
+  const ingredients = useSelector(getIngredientsWithSelector);
 
   useEffect(() => {
-    if (!orderData) {
-      dispatch(getOrderByNum(Number(number)));
+    if (!orderData && !isNaN(orderNumber)) {
+      dispatch(getOrderByNum(orderNumber));
     }
-  }, [dispatch]);
+  }, [dispatch, orderData, orderNumber]);
 
-  /* Готовим данные для отображения. Используем мемоизацию для того, чтобы производить вычисление только если данные изменились */
-  const orderInfo = useMemo(() => {
-    if (!orderData || !ingredients.length) return; // Если данные о заказе или ингредиенты отсутствуют, ничего не возвращаем
+  const orderInfo = useMemo<ExtendedOrderInfo | null>(() => {
+    if (!orderData || !ingredients.length) {
+      return null;
+    }
 
-    const date = new Date(orderData.createdAt); // Преобразуем дату создания заказа в объект Date
-
-    type TIngredientsWithCount = {
-      [key: string]: TIngredient & { count: number };
-    };
-
-    // Собираем информацию об ингредиентах из заказа, включая их количество
-    const ingredientsInfo = orderData.ingredients.reduce(
-      (acc: TIngredientsWithCount, item) => {
-        if (!acc[item]) {
-          // Если ингредиент еще не был добавлен, находим его в общем списке ингредиентов и добавляем
-          const ingredient = ingredients.find((ing) => ing._id === item);
-          if (ingredient) {
-            acc[item] = {
-              ...ingredient,
-              count: 1
-            };
-          }
-        } else {
-          acc[item].count++; // Если ингредиент уже был добавлен, увеличиваем его количество
+    const ingredientsInfo = orderData.ingredients.reduce<
+      Record<string, TIngredientWithCount>
+    >((acc, itemId) => {
+      if (!acc[itemId]) {
+        const ingredient = ingredients.find((ing) => ing._id === itemId);
+        if (ingredient) {
+          acc[itemId] = {
+            ...ingredient,
+            count: 1
+          };
         }
+      } else {
+        acc[itemId].count++;
+      }
+      return acc;
+    }, {});
 
-        return acc;
-      },
-      {}
-    );
+    if (Object.keys(ingredientsInfo).length === 0) {
+      return null;
+    }
 
-    // Рассчитываем общую стоимость заказа
     const total = Object.values(ingredientsInfo).reduce(
-      (acc, item) => acc + item.price * item.count,
+      (sum, item) => sum + item.price * item.count,
       0
     );
-    // Возвращаем собранные данные: информацию о заказе, ингредиенты, дату и общую стоимость
+
     return {
       ...orderData,
       ingredientsInfo,
-      date,
+      date: new Date(orderData.createdAt),
       total
     };
   }, [orderData, ingredients]);
 
+  if (!number || isNaN(orderNumber)) {
+    return (
+      <div className='text text_type_main-default text_color_error'>
+        Некорректный номер заказа
+      </div>
+    );
+  }
+
   if (!orderInfo) {
-    return <Preloader />;
+    return (
+      <div className='text text_type_main-default text_color_inactive'>
+        <Preloader />
+        <div className='mt-4'>Загрузка информации о заказе...</div>
+      </div>
+    );
   }
 
   return <OrderInfoUI orderInfo={orderInfo} />;

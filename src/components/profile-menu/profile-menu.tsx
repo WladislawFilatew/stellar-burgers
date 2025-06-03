@@ -1,23 +1,42 @@
-import { FC } from 'react';
-import { useLocation } from 'react-router-dom';
+import { FC, useCallback, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ProfileMenuUI } from '@ui';
 import { useDispatch } from '../../services/store';
 import { logOutUser } from '../../services/slices/UserInfoSlice';
-import { useNavigate } from 'react-router-dom';
 
 export const ProfileMenu: FC = () => {
   const { pathname } = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return;
+
     try {
+      setIsLoggingOut(true);
+      setLogoutError(null);
       await dispatch(logOutUser()).unwrap();
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (error) {
-      console.error('Logout failed: ', error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Произошла ошибка при выходе из системы';
+      setLogoutError(errorMessage);
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
     }
-  };
+  }, [dispatch, navigate, isLoggingOut]);
 
-  return <ProfileMenuUI handleLogout={handleLogout} pathname={pathname} />;
+  return (
+    <ProfileMenuUI
+      handleLogout={handleLogout}
+      pathname={pathname}
+      isLoggingOut={isLoggingOut}
+      logoutError={logoutError}
+    />
+  );
 };

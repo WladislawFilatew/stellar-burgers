@@ -1,20 +1,63 @@
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
+import { useParams, Navigate } from 'react-router-dom';
+import { useSelector } from '../../services/store';
+import {
+  getIngredientsWithSelector,
+  getLoadingStatus,
+  getError
+} from '../../services/slices/IngredientsSlice';
 import { Preloader } from '../ui/preloader';
 import { IngredientDetailsUI } from '../ui/ingredient-details';
-import { useSelector } from '../../services/store';
-import { useParams } from 'react-router-dom';
-import { getIngredientsWithSelector } from '../../services/slices/IngredientsSlice';
 import styles from '../app/app.module.css';
 
 export const IngredientDetails: FC = () => {
+  const { id } = useParams();
+
   const ingredients = useSelector(getIngredientsWithSelector);
+  const isLoading = useSelector(getLoadingStatus);
+  const error = useSelector(getError);
 
-  const { id } = useParams(); // извлекаем параметр id из url
+  const ingredientData = useMemo(
+    () => ingredients.find((item) => item._id === id),
+    [ingredients, id]
+  );
 
-  const ingredientData = ingredients.find((item) => item._id === id); //в переменной вернули ингредиент, id которого совпадает с id params url
+  if (isLoading) {
+    return (
+      <div className={styles.detailPageWrap}>
+        <Preloader />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className={`${styles.detailPageWrap} text text_type_main-medium text_color_error`}
+      >
+        Произошла ошибка при загрузке данных ингредиента
+      </div>
+    );
+  }
+
+  if (!ingredients.length) {
+    return (
+      <div
+        className={`${styles.detailPageWrap} text text_type_main-medium text_color_inactive`}
+      >
+        Список ингредиентов пуст
+      </div>
+    );
+  }
 
   if (!ingredientData) {
-    return <Preloader />;
+    return (
+      <Navigate
+        to='/ingredients'
+        replace
+        state={{ error: 'Ингредиент не найден' }}
+      />
+    );
   }
 
   return (

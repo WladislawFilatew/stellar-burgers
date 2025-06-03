@@ -1,37 +1,74 @@
-import { FC } from 'react';
+import { FC, useMemo } from 'react';
 import { TOrder } from '@utils-types';
 import { FeedInfoUI } from '../ui/feed-info';
 import {
   getFeedOrders,
-  getTotalEmountOrders,
-  getTotalEmountToday,
+  getTotalAmountOrders,
+  getTotalAmountToday,
   getLoading,
   getError
 } from '../../services/slices/FeedDataSlice';
 import { useSelector } from '../../services/store';
 
-//Обертка для компонента отображения общей информации о заказах в ленте заказов. Содержит основную логику, результаты передаются в компонент для последующего рендера
+const MAX_DISPLAYED_ORDERS = 20;
+const ORDER_STATUSES = {
+  DONE: 'done',
+  PENDING: 'pending'
+} as const;
 
-// Вспомогательная функция для получения номеров заказов по их статусу
-const getOrders = (orders: TOrder[], status: string): number[] =>
+const getOrdersByStatus = (orders: TOrder[], status: string): number[] =>
   orders
-    .filter((item) => item.status === status) // Фильтруем заказы по статусу
-    .map((item) => item.number) // Извлекаем номера заказов
-    .slice(0, 20); // Ограничиваем результат до 20 заказов
+    .filter((item) => item.status === status)
+    .map((item) => item.number)
+    .slice(0, MAX_DISPLAYED_ORDERS);
 
 export const FeedInfo: FC = () => {
-  const orders: TOrder[] = useSelector(getFeedOrders);
-  const totalAmount = useSelector(getTotalEmountOrders);
-  const totalAmountToday = useSelector(getTotalEmountToday);
+  const orders = useSelector(getFeedOrders);
+  const totalAmount = useSelector(getTotalAmountOrders);
+  const totalAmountToday = useSelector(getTotalAmountToday);
+  const isLoading = useSelector(getLoading);
+  const error = useSelector(getError);
 
-  const readyOrders = getOrders(orders, 'done');
-  const pendingOrders = getOrders(orders, 'pending');
+  const { readyOrders, pendingOrders } = useMemo(
+    () => ({
+      readyOrders: getOrdersByStatus(orders, ORDER_STATUSES.DONE),
+      pendingOrders: getOrdersByStatus(orders, ORDER_STATUSES.PENDING)
+    }),
+    [orders]
+  );
+
+  if (isLoading) {
+    return (
+      <div className='text text_type_main-medium text_color_inactive'>
+        Загрузка информации о заказах...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className='text text_type_main-medium text_color_error'>
+        Произошла ошибка при загрузке информации о заказах
+      </div>
+    );
+  }
+
+  if (!orders.length) {
+    return (
+      <div className='text text_type_main-medium text_color_inactive'>
+        Нет доступных заказов
+      </div>
+    );
+  }
 
   return (
     <FeedInfoUI
       readyOrders={readyOrders}
       pendingOrders={pendingOrders}
-      feed={{ total: totalAmount, totalToday: totalAmountToday }}
+      feed={{
+        total: totalAmount,
+        totalToday: totalAmountToday
+      }}
     />
   );
 };

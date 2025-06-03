@@ -69,6 +69,7 @@
     "eslint-webpack-plugin": "^4.0.1",
     "fetch-mock": "^9.11.0",
     "html-webpack-plugin": "^5.6.0",
+    "identity-obj-proxy": "^3.0.0",
     "jest": "^29.7.0",
     "jest-css-modules-transform": "^4.4.2",
     "jest-environment-jsdom": "^29.7.0",
@@ -91,7 +92,11 @@
     "build-storybook": "storybook build",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx ./src",
     "lint:fix": "npm run lint -- --fix",
-    "format": "prettier ./src --write"
+    "jest": "npx jest",
+    "format": "prettier ./src --write",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "test:e2e": "start-server-and-test start http://localhost:3000 cypress:run"
   },
   "eslintConfig": {
     "extends": [

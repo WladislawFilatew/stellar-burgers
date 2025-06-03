@@ -8,7 +8,7 @@ import { TConstructorIngredient, TIngredient, TOrder } from '@utils-types';
 import { orderBurgerApi, getIngredientsApi } from '../../utils/burger-api';
 import { getLoadingStatus } from './IngredientsSlice';
 
-type TStateBurgerConstructor = {
+export type TStateBurgerConstructor = {
   constructorItems: {
     bun: TIngredient | null;
     ingredients: Array<TConstructorIngredient>;

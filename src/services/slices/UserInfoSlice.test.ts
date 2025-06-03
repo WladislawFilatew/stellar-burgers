@@ -7,248 +7,372 @@ import {
   logOutUser,
   updateUser,
   userStateSlice,
-  authChecked
+  authChecked,
+  userApi,
+  selectUser,
+  selectIsAuthenticated,
+  selectLoginUserError,
+  selectIsAuthChecked,
+  selectLoginUserRequest,
+  AuthStatus
 } from './UserInfoSlice';
 
 const initialState: TStateUser = {
+  authStatus: AuthStatus.IDLE,
   isAuthChecked: false,
   isAuthenticated: false,
   user: null,
   loginUserError: null,
-  loginUserRequest: false
+  loginUserRequest: false,
+  lastUpdated: null,
+  sessionExpiresAt: null
 };
 
 const testUser = {
   success: true,
   user: {
-    email: 'test35@mail.ru',
-    name: 'test'
+    email: 'test33@mail.ru',
+    name: 'test',
+    createdAt: '2023-12-25T10:00:00.000Z',
+    updatedAt: '2023-12-25T10:00:00.000Z'
   },
-  accessToken: 'test',
-  refreshToken: 'test'
+  accessToken: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test',
+  refreshToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh'
 };
 
 const testLogIn = {
-  email: 'test35@mail.ru',
-  password: 'password'
+  email: 'test33@mail.ru',
+  password: 'password123'
 };
 
 const testRegisterUser = {
-  email: 'test35@mail.ru',
+  email: 'test33@mail.ru',
   name: 'test',
-  password: 'password'
+  password: 'password123'
 };
 
 const updatedUser = {
   success: true,
   user: {
-    email: 'test35@mail.ru',
-    name: 'test35'
+    email: 'test33@mail.ru',
+    name: 'test35',
+    createdAt: '2023-12-25T10:00:00.000Z',
+    updatedAt: '2023-12-25T10:05:00.000Z'
   }
 };
 
-describe('User state slice reducers tests', () => {
-  it('should handle authChecked', () => {
-    // Задаем начальное состояние
-    const previousState = {
-      ...initialState,
-      isAuthChecked: false // Предполагаем, что проверка аутентификации еще не завершена
+describe('UserStateSlice', () => {
+  describe('Reducers', () => {
+    it('should handle authChecked', () => {
+      const previousState = {
+        ...initialState,
+        isAuthChecked: false
+      };
+
+      const actualState = userStateSlice.reducer(previousState, authChecked());
+
+      expect(actualState.isAuthChecked).toBe(true);
+    });
+  });
+
+  describe('Extra Reducers', () => {
+    describe('userApi', () => {
+      it('should handle pending state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          userApi.pending('')
+        );
+
+        expect(actualState.isAuthenticated).toBe(false);
+        expect(actualState.loginUserError).toBeNull();
+        expect(actualState.user).toBeNull();
+        expect(actualState.loginUserRequest).toBe(true);
+      });
+
+      it('should handle fulfilled state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          userApi.fulfilled(testUser, '')
+        );
+
+        expect(actualState.isAuthenticated).toBe(true);
+        expect(actualState.user).toEqual(testUser.user);
+        expect(actualState.isAuthChecked).toBe(true);
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+
+      it('should handle rejected state', () => {
+        const error = new Error('Failed to fetch user data');
+        const actualState = userStateSlice.reducer(
+          initialState,
+          userApi.rejected(error, '')
+        );
+
+        expect(actualState.loginUserError).toBe('Failed to fetch user data');
+        expect(actualState.isAuthenticated).toBe(false);
+        expect(actualState.user).toBeNull();
+        expect(actualState.isAuthChecked).toBe(true);
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+    });
+
+    describe('toRegisterUser', () => {
+      it('should handle pending state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          toRegisterUser.pending('', testRegisterUser)
+        );
+
+        expect(actualState.isAuthenticated).toBe(false);
+        expect(actualState.user).toBeNull();
+        expect(actualState.loginUserRequest).toBe(true);
+      });
+
+      it('should handle fulfilled state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          toRegisterUser.fulfilled(testUser.user, '', testRegisterUser)
+        );
+
+        expect(actualState.isAuthenticated).toBe(true);
+        expect(actualState.user).toEqual(testUser.user);
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+
+      it('should handle rejected state', () => {
+        const error = new Error('Failed to fetch register user');
+        const actualState = userStateSlice.reducer(
+          initialState,
+          toRegisterUser.rejected(error, '', testRegisterUser)
+        );
+
+        expect(actualState.isAuthenticated).toBe(false);
+        expect(actualState.loginUserError).toBe(
+          'Failed to fetch register user'
+        );
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+    });
+
+    describe('logInUser', () => {
+      it('should handle pending state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          logInUser.pending('', testLogIn)
+        );
+
+        expect(actualState.loginUserError).toBeNull();
+        expect(actualState.loginUserRequest).toBe(true);
+      });
+
+      it('should handle fulfilled state', () => {
+        const actualState = userStateSlice.reducer(
+          initialState,
+          logInUser.fulfilled(testUser.user, '', testLogIn)
+        );
+
+        expect(actualState.isAuthenticated).toBe(true);
+        expect(actualState.user).toEqual(testUser.user);
+        expect(actualState.isAuthChecked).toBe(true);
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+
+      it('should handle rejected state', () => {
+        const error = new Error('Failed to fetch Log in user');
+        const actualState = userStateSlice.reducer(
+          initialState,
+          logInUser.rejected(error, '', testLogIn)
+        );
+
+        expect(actualState.loginUserRequest).toBe(false);
+        expect(actualState.loginUserError).toBe('Failed to fetch Log in user');
+        expect(actualState.isAuthChecked).toBe(true);
+      });
+    });
+
+    describe('logOutUser', () => {
+      const authenticatedState = {
+        ...initialState,
+        authStatus: AuthStatus.AUTHENTICATED,
+        isAuthenticated: true,
+        user: testUser.user
+      };
+
+      it('should handle pending state', () => {
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          logOutUser.pending('')
+        );
+
+        expect(actualState.loginUserRequest).toBe(true);
+      });
+
+      it('should handle fulfilled state', () => {
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          logOutUser.fulfilled(undefined, '')
+        );
+
+        expect(actualState.authStatus).toBe(AuthStatus.UNAUTHENTICATED);
+        expect(actualState.isAuthenticated).toBe(false);
+        expect(actualState.user).toBeNull();
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+
+      it('should handle rejected state', () => {
+        const error = new Error('Failed to fetch Log Out user');
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          logOutUser.rejected(error, '')
+        );
+
+        expect(actualState.loginUserRequest).toBe(false);
+        expect(actualState.loginUserError).toBe('Failed to fetch Log Out user');
+      });
+    });
+
+    describe('updateUser', () => {
+      const authenticatedState = {
+        ...initialState,
+        isAuthenticated: true,
+        user: testUser.user
+      };
+
+      it('should handle pending state', () => {
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          updateUser.pending('', {})
+        );
+
+        expect(actualState.isAuthenticated).toBe(true);
+        expect(actualState.loginUserRequest).toBe(true);
+      });
+
+      it('should handle fulfilled state', () => {
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          updateUser.fulfilled(updatedUser, '', { name: 'test35' })
+        );
+
+        expect(actualState.isAuthenticated).toBe(true);
+        expect(actualState.user).toEqual(updatedUser.user);
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+
+      it('should handle rejected state', () => {
+        const error = new Error('Failed to fetch update user');
+        const actualState = userStateSlice.reducer(
+          authenticatedState,
+          updateUser.rejected(error, '', { name: 'test35' })
+        );
+
+        expect(actualState.loginUserError).toBe('Failed to fetch update user');
+        expect(actualState.loginUserRequest).toBe(false);
+      });
+    });
+  });
+
+  describe('Selectors', () => {
+    const state = {
+      userstate: {
+        ...initialState,
+        isAuthenticated: true,
+        user: testUser.user,
+        loginUserError: 'Test error',
+        isAuthChecked: true,
+        loginUserRequest: true
+      }
     };
 
-    // Вызываем редьюсер с предыдущим состоянием и экшеном authChecked
-    const actualState = userStateSlice.reducer(previousState, authChecked());
+    it('should select user', () => {
+      expect(selectUser(state)).toEqual(testUser.user);
+    });
 
-    // Ожидаемое состояние после вызова редьюсера
-    const expectedState = {
-      ...previousState,
-      isAuthChecked: true // Ожидаем, что флаг isAuthChecked станет true
-    };
+    it('should select isAuthenticated', () => {
+      expect(selectIsAuthenticated(state)).toBe(true);
+    });
 
-    // Сравниваем фактическое состояние с ожидаемым
-    expect(actualState).toEqual(expectedState);
-  });
-});
+    it('should select loginUserError', () => {
+      expect(selectLoginUserError(state)).toBe('Test error');
+    });
 
-describe('User state slice extrareducers tests', () => {
-  it('should handle toRegisterUser into pending status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      toRegisterUser.pending('', testRegisterUser)
-    );
+    it('should select isAuthChecked', () => {
+      expect(selectIsAuthChecked(state)).toBe(true);
+    });
 
-    expect(actualState).toEqual({
-      ...initialState,
-      isAuthenticated: false,
-      user: null,
-      loginUserRequest: true
+    it('should select loginUserRequest', () => {
+      expect(selectLoginUserRequest(state)).toBe(true);
     });
   });
 
-  it('should handle toRegisterUser into fulfilled status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      toRegisterUser.fulfilled(testUser.user, '', testRegisterUser)
-    );
+  describe('Edge Cases', () => {
+    it('should handle multiple login attempts', () => {
+      let state = userStateSlice.reducer(
+        initialState,
+        logInUser.fulfilled(testUser.user, '', testLogIn)
+      );
 
-    expect(actualState).toEqual({
-      ...initialState,
-      isAuthenticated: true,
-      user: testUser.user,
-      loginUserRequest: false
+      state = userStateSlice.reducer(
+        state,
+        logInUser.fulfilled(updatedUser.user, '', testLogIn)
+      );
+
+      expect(state.user).toEqual(updatedUser.user);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.authStatus).toBe(AuthStatus.AUTHENTICATED);
     });
-  });
 
-  it('should handle toRegisterUser into rejected status', () => {
-    const error = new Error('User register error');
-    const actualState = userStateSlice.reducer(
-      initialState,
-      toRegisterUser.rejected(error, '', testRegisterUser)
-    );
+    it('should handle logout during update', () => {
+      let state = userStateSlice.reducer(
+        initialState,
+        logInUser.fulfilled(testUser.user, '', testLogIn)
+      );
 
-    expect(actualState).toEqual({
-      ...initialState,
-      isAuthenticated: false,
-      loginUserError: 'User register error',
-      loginUserRequest: false
+      state = userStateSlice.reducer(state, updateUser.pending('', {}));
+      state = userStateSlice.reducer(
+        state,
+        logOutUser.fulfilled(undefined, '')
+      );
+
+      expect(state.authStatus).toBe(AuthStatus.UNAUTHENTICATED);
+      expect(state.isAuthenticated).toBe(false);
+      expect(state.user).toBeNull();
+      expect(state.loginUserRequest).toBe(false);
     });
-  });
 
-  it('should handle logInUser into pending status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      logInUser.pending('', testLogIn)
-    );
+    it('should handle failed update after successful login', () => {
+      let state = userStateSlice.reducer(
+        initialState,
+        logInUser.fulfilled(testUser.user, '', testLogIn)
+      );
 
-    expect(actualState).toEqual({
-      ...initialState,
-      loginUserError: null,
-      loginUserRequest: true
+      const error = new Error('Update failed');
+      state = userStateSlice.reducer(
+        state,
+        updateUser.rejected(error, '', { name: 'test35' })
+      );
+
+      expect(state.user).toEqual(testUser.user);
+      expect(state.isAuthenticated).toBe(true);
+      expect(state.authStatus).toBe(AuthStatus.AUTHENTICATED);
+      expect(state.loginUserError).toBe('Update failed');
     });
-  });
 
-  it('should handle logInUser into fulfilled status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      logInUser.fulfilled(testUser.user, '', testRegisterUser)
-    );
+    it('should maintain auth state during multiple operations', () => {
+      let state = userStateSlice.reducer(
+        initialState,
+        logInUser.fulfilled(testUser.user, '', testLogIn)
+      );
 
-    expect(actualState).toEqual({
-      ...initialState,
-      user: testUser.user,
-      isAuthenticated: true,
-      isAuthChecked: true,
-      loginUserRequest: false
-    });
-  });
+      state = userStateSlice.reducer(state, updateUser.pending('', {}));
+      state = userStateSlice.reducer(
+        state,
+        updateUser.fulfilled(updatedUser, '', { name: 'test35' })
+      );
+      state = userStateSlice.reducer(state, userApi.pending('', undefined));
 
-  it('should handle logInUser into rejected status', () => {
-    const error = new Error('User Log in Error');
-    const actualState = userStateSlice.reducer(
-      initialState,
-      logInUser.rejected(error, '', testLogIn)
-    );
-
-    expect(actualState).toEqual({
-      ...initialState,
-      isAuthChecked: true,
-      loginUserRequest: false,
-      isAuthenticated: false,
-      loginUserError: 'User Log in Error'
-    });
-  });
-
-  it('should handle logOutUser into pending status', () => {
-    const previousState = {
-      ...initialState,
-      isAuthenticated: true,
-      user: testUser.user
-    };
-
-    const actualState = userStateSlice.reducer(
-      previousState,
-      logOutUser.pending('')
-    );
-
-    expect(actualState).toEqual({
-      ...previousState,
-      loginUserRequest: true
-    });
-  });
-
-  it('should handle logOutUser into fulfilled status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      logOutUser.fulfilled(undefined, '')
-    );
-
-    expect(actualState).toEqual({
-      isAuthenticated: false,
-      user: null,
-      loginUserRequest: false,
-      isAuthChecked: false,
-      loginUserError: null
-    });
-  });
-
-  it('should handle logOutUser into rejected status', () => {
-    const error = new Error('Failed to log out');
-    const previousState = {
-      ...initialState,
-      isAuthenticated: true,
-      user: testUser.user
-    };
-
-    const actualState = userStateSlice.reducer(
-      previousState,
-      logOutUser.rejected(error, '')
-    );
-
-    expect(actualState).toEqual({
-      ...previousState,
-      isAuthenticated: false,
-      loginUserError: 'Failed to log out',
-      loginUserRequest: false
-    });
-  });
-
-  it('should handle updateUser into pending status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      updateUser.pending('', updatedUser.user)
-    );
-
-    expect(actualState).toEqual({
-      ...initialState,
-      isAuthenticated: true,
-      loginUserRequest: true
-    });
-  });
-
-  it('should handle updateUser into fulfilled status', () => {
-    const actualState = userStateSlice.reducer(
-      initialState,
-      updateUser.fulfilled(updatedUser, '', testUser.user)
-    );
-    expect(actualState).toEqual({
-      isAuthenticated: true,
-      user: updatedUser.user,
-      loginUserRequest: false,
-      isAuthChecked: false,
-      loginUserError: null
-    });
-  });
-
-  it('should handle updateUser into rejected status', () => {
-    const error = new Error('Failed to fetch update user');
-    const actualState = userStateSlice.reducer(
-      initialState,
-      updateUser.rejected(error, '', testUser.user)
-    );
-
-    expect(actualState).toEqual({
-      ...initialState,
-      loginUserError: error.message,
-      loginUserRequest: false
+      expect(state.authStatus).toBe(AuthStatus.CHECKING);
+      expect(state.loginUserRequest).toBe(true);
     });
   });
 });

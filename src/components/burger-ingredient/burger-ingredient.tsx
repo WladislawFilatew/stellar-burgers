@@ -8,12 +8,10 @@ import { useDispatch } from '../../services/store';
 
 export const BurgerIngredient: FC<TBurgerIngredientProps> = memo(
   ({ ingredient, count }) => {
-    const location = useLocation(); // Получаем текущую локацию, чтобы использовать её для работы с модальным окном
+    const location = useLocation();
     const dispatch = useDispatch();
 
-    // Функция-обработчик для добавления ингредиента в конструктор
     const handleAdd = () => {
-      // Добавляем ингредиент в конструктор бургера
       dispatch(addIngredient(ingredient));
     };
 

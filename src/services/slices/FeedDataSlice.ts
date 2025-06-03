@@ -1,8 +1,18 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { getFeedsApi } from '../../utils/burger-api';
-import { TOrder } from '@utils-types';
-import { getOrderByNumberApi } from '../../utils/burger-api';
-import { act } from 'react-dom/test-utils';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { getFeedsApi, getOrderByNumberApi } from '../../utils/burger-api';
+import { TOrder, TOrdersData } from '@utils-types';
+
+export enum WebSocketStatus {
+  CONNECTING = 'CONNECTING',
+  ONLINE = 'ONLINE',
+  OFFLINE = 'OFFLINE'
+}
+
+export enum OrderStatus {
+  DONE = 'done',
+  PENDING = 'pending',
+  CREATED = 'created'
+}
 
 export type TStateFeed = {
   orders: TOrder[];
@@ -11,6 +21,11 @@ export type TStateFeed = {
   error: null | string;
   loading: boolean;
   modalOrder: TOrder | null;
+  status: WebSocketStatus;
+  currentPage: number;
+  itemsPerPage: number;
+  orderCache: Record<string, TOrder>;
+  lastUpdated: number | null;
 };
 
 const initialState: TStateFeed = {
@@ -19,19 +34,39 @@ const initialState: TStateFeed = {
   totalToday: 0,
   error: null,
   loading: false,
-  modalOrder: null
+  modalOrder: null,
+  status: WebSocketStatus.OFFLINE,
+  currentPage: 1,
+  itemsPerPage: 10,
+  orderCache: {},
+  lastUpdated: null
 };
 
-export const getFeedData = createAsyncThunk('feed/data', getFeedsApi);
+// Async actions
+export const getFeedData = createAsyncThunk(
+  'feed/data',
+  async (page: number = 1) => {
+    const response = await getFeedsApi();
+    return {
+      ...response,
+      page
+    };
+  }
+);
 
 export const getOrderByNum = createAsyncThunk(
   'feed/getOrder',
   async (number: number, { rejectWithValue }) => {
     try {
       const response = await getOrderByNumberApi(number);
+      if (!response.success || !response.orders.length) {
+        throw new Error('Order not found');
+      }
       return response;
     } catch (error) {
-      return rejectWithValue('Error feed data');
+      return rejectWithValue(
+        error instanceof Error ? error.message : 'Error loading order'
+      );
     }
   }
 );
@@ -39,9 +74,62 @@ export const getOrderByNum = createAsyncThunk(
 export const feedDataSlice = createSlice({
   name: 'feeddata',
   initialState,
-  reducers: {},
+  reducers: {
+    // WebSocket actions
+    wsConnecting: (state) => {
+      state.status = WebSocketStatus.CONNECTING;
+    },
+    wsOpen: (state) => {
+      state.status = WebSocketStatus.ONLINE;
+      state.error = null;
+    },
+    wsClose: (state) => {
+      state.status = WebSocketStatus.OFFLINE;
+    },
+    wsError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+      state.status = WebSocketStatus.OFFLINE;
+    },
+    wsMessage: (state, action: PayloadAction<TOrdersData>) => {
+      state.orders = action.payload.orders;
+      state.total = action.payload.total;
+      state.totalToday = action.payload.totalToday;
+      state.lastUpdated = Date.now();
+
+      // Update cache
+      action.payload.orders.forEach((order) => {
+        state.orderCache[order._id] = order;
+      });
+    },
+
+    // Pagination actions
+    setCurrentPage: (state, action: PayloadAction<number>) => {
+      state.currentPage = action.payload;
+    },
+    setItemsPerPage: (state, action: PayloadAction<number>) => {
+      state.itemsPerPage = action.payload;
+      state.currentPage = 1; // Reset to first page when changing items per page
+    },
+
+    // Modal actions
+    clearModalOrder: (state) => {
+      state.modalOrder = null;
+    },
+
+    // Cache management
+    clearCache: (state) => {
+      state.orderCache = {};
+      state.lastUpdated = null;
+    },
+
+    // Error handling
+    clearError: (state) => {
+      state.error = null;
+    }
+  },
   extraReducers: (builder) => {
     builder
+      // Feed data
       .addCase(getFeedData.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -50,40 +138,129 @@ export const feedDataSlice = createSlice({
         state.orders = action.payload.orders;
         state.total = action.payload.total;
         state.totalToday = action.payload.totalToday;
+        state.currentPage = action.payload.page;
         state.loading = false;
+        state.error = null;
+        state.lastUpdated = Date.now();
+
+        // Update cache
+        action.payload.orders.forEach((order) => {
+          state.orderCache[order._id] = order;
+        });
       })
       .addCase(getFeedData.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Feed error';
+        state.error = action.error.message || 'Error loading feed data';
       })
+      // Single order
       .addCase(getOrderByNum.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
       .addCase(getOrderByNum.fulfilled, (state, action) => {
+        const order = action.payload.orders[0];
+        state.modalOrder = order || null;
+        if (order) {
+          state.orderCache[order._id] = order;
+        }
         state.loading = false;
-        state.modalOrder = action.payload.orders[0];
+        state.error = null;
+        state.lastUpdated = Date.now();
       })
       .addCase(getOrderByNum.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.error.message || 'Feed error';
+        state.error = action.error.message || 'Error loading order';
       });
   },
   selectors: {
+    // Basic selectors
     getFeedOrders: (state) => state.orders,
-    getTotalEmountOrders: (state) => state.total,
-    getTotalEmountToday: (state) => state.totalToday,
+    getTotalAmountOrders: (state) => state.total,
+    getTotalAmountToday: (state) => state.totalToday,
     getLoading: (state) => state.loading,
     getError: (state) => state.error,
-    selectModalOrder: (state) => state.modalOrder
+    selectModalOrder: (state) => state.modalOrder,
+    getWebSocketStatus: (state) => state.status,
+
+    // Pagination selectors
+    getCurrentPage: (state) => state.currentPage,
+    getItemsPerPage: (state) => state.itemsPerPage,
+    getTotalPages: (state) => Math.ceil(state.total / state.itemsPerPage),
+
+    // Cache selectors
+    getOrderFromCache: (state, id: string) => state.orderCache[id],
+    getLastUpdated: (state) => state.lastUpdated,
+
+    // Filtered selectors
+    getOrdersByStatus: (state, status: OrderStatus) =>
+      state.orders.filter((order) => order.status === status),
+
+    getPaginatedOrders: (state) => {
+      const start = (state.currentPage - 1) * state.itemsPerPage;
+      const end = start + state.itemsPerPage;
+      return state.orders.slice(start, end);
+    },
+
+    getRecentOrders: (state, count: number = 5) =>
+      [...state.orders]
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        .slice(0, count),
+
+    // Statistics selectors
+    getDoneOrders: (state) =>
+      state.orders.filter((order) => order.status === OrderStatus.DONE),
+
+    getPendingOrders: (state) =>
+      state.orders.filter((order) => order.status === OrderStatus.PENDING),
+
+    getOrdersStats: (state) => ({
+      done: state.orders.filter((order) => order.status === OrderStatus.DONE)
+        .length,
+      pending: state.orders.filter(
+        (order) => order.status === OrderStatus.PENDING
+      ).length,
+      created: state.orders.filter(
+        (order) => order.status === OrderStatus.CREATED
+      ).length
+    })
   }
 });
 
-export default feedDataSlice;
+export const {
+  wsConnecting,
+  wsOpen,
+  wsClose,
+  wsError,
+  wsMessage,
+  setCurrentPage,
+  setItemsPerPage,
+  clearModalOrder,
+  clearCache,
+  clearError
+} = feedDataSlice.actions;
+
 export const {
   getFeedOrders,
-  getTotalEmountOrders,
-  getTotalEmountToday,
+  getTotalAmountOrders,
+  getTotalAmountToday,
   getLoading,
-  getError
+  getError,
+  selectModalOrder,
+  getWebSocketStatus,
+  getCurrentPage,
+  getItemsPerPage,
+  getTotalPages,
+  getOrderFromCache,
+  getLastUpdated,
+  getOrdersByStatus,
+  getPaginatedOrders,
+  getRecentOrders,
+  getDoneOrders,
+  getPendingOrders,
+  getOrdersStats
 } = feedDataSlice.selectors;
+
+export default feedDataSlice;

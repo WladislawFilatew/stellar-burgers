@@ -6,7 +6,6 @@ import { Preloader } from '../../components/ui';
 import { FC } from 'react';
 import { getLoadingStatus } from '../../services/slices/IngredientsSlice';
 
-//компонент страницы конструктора
 export const ConstructorPage: FC = () => {
   const loadingStatus = useSelector(getLoadingStatus);
   const isIngredientsLoading = loadingStatus;

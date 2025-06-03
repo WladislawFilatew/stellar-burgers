@@ -2,6 +2,10 @@
   "success": true,
   "user": {
     "email": "test33@mail.ru",
-    "name": "test"
-  }
+    "name": "test",
+    "createdAt": "2023-12-25T10:00:00.000Z",
+    "updatedAt": "2023-12-25T10:00:00.000Z"
+  },
+  "accessToken": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test",
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh"
 }

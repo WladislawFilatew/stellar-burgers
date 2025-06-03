@@ -1,0 +1,25 @@
+{
+    "success": true,
+    "name": "Space бургер",
+    "order": {
+        "number": 2128506,
+        "ingredients": [
+            "60d3b41abdacab0026a733c6",
+            "60d3b41abdacab0026a733cc",
+            "60d3b41abdacab0026a733c8",
+            "60d3b41abdacab0026a733c6"
+        ],
+        "status": "done",
+        "_id": "507f1f77bcf86cd799439011",
+        "owner": {
+            "name": "test",
+            "email": "test33@mail.ru",
+            "createdAt": "2023-12-25T10:00:00.000Z",
+            "updatedAt": "2023-12-25T10:00:00.000Z"
+        },
+        "createdAt": "2023-12-25T10:05:00.000Z",
+        "updatedAt": "2023-12-25T10:05:00.000Z",
+        "number": 2128506,
+        "price": 3588
+    }
+} 
